@@ -14,7 +14,7 @@ export default function LoginPage() {
   const router = useRouter();
 
   // Define who the admins are
-  const adminEmails = ["admin@test.com", "contact.adaabyshagun@gmail.com"];
+  const adminEmails = ["contact.adaabyshagun@gmail.com"];
 
   // 1. SMART CHECK ON PAGE LOAD: If already logged in, where should they go?
   useEffect(() => {

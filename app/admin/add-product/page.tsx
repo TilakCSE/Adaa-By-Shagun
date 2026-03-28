@@ -14,7 +14,7 @@ export default function AddProductPage() {
   
   // --- ADMIN BOUNCER ---
   const [loadingAuth, setLoadingAuth] = useState(true);
-  const adminEmails = ["admin@test.com", "contact.adaabyshagun@gmail.com"];
+  const adminEmails = ["contact.adaabyshagun@gmail.com"];
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {

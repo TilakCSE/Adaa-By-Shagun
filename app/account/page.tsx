@@ -27,7 +27,7 @@ export default function AccountPage() {
   const [pincode, setPincode] = useState("");
 
   // Add your admin emails here!
-  const adminEmails = ["admin@test.com", "contact.adaabyshagun@gmail.com"];
+  const adminEmails = ["contact.adaabyshagun@gmail.com"];
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {

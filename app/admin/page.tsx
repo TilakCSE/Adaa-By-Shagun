@@ -18,26 +18,30 @@ interface Order {
 
 export default function AdminDashboard() {
   const router = useRouter();
-  const [user, setUser] = useState<User | null>(null);
   
+  // --- STATE ---
+  const [user, setUser] = useState<User | null>(null);
+  const [loadingAuth, setLoadingAuth] = useState(true);
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [loadingData, setLoadingData] = useState(true);
   const [activeTab, setActiveTab] = useState<"orders" | "inventory">("orders");
-
-  // Modal State
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
-  const adminEmails = ["admin@test.com", "contact.adaabyshagun@gmail.com"];
+  // --- THE NEW BOUNCER ---
+  // Only this email is allowed in!
+  const adminEmails = ["contact.adaabyshagun@gmail.com"];
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      // THE BOUNCER: If not logged in, or email doesn't match our admin list, kick them out!
-      if (!currentUser || !currentUser.email || !adminEmails.includes(currentUser.email)) {
-        router.push("/"); 
+      if (!currentUser || !currentUser.email || !adminEmails.includes(currentUser.email.toLowerCase())) {
+        // Not logged in or not an admin? Kick them to the home page!
+        router.push("/");
       } else {
-        // They are an admin, let them stay and load data
-        setLoadingData(false); // (Or whatever your specific loading state is named in that file)
+        // They are the admin! Let them in and fetch the data.
+        setUser(currentUser);
+        setLoadingAuth(false);
+        fetchData();
       }
     });
     return () => unsubscribe();
@@ -49,8 +53,11 @@ export default function AdminDashboard() {
       setProducts(pSnap.docs.map(d => ({ id: d.id, ...d.data() } as Product)));
       const oSnap = await getDocs(query(collection(db, "orders"), orderBy("createdAt", "desc")));
       setOrders(oSnap.docs.map(d => ({ id: d.id, ...d.data() } as Order)));
-    } catch (e) { console.error(e); } 
-    finally { setLoadingData(false); }
+    } catch (e) { 
+      console.error("Error fetching data:", e); 
+    } finally { 
+      setLoadingData(false); 
+    }
   };
 
   const handleUpdateOrderStatus = async (orderId: string, field: "paymentStatus" | "orderStatus", value: string) => {
@@ -71,21 +78,18 @@ export default function AdminDashboard() {
     if (type === "Shipped") message = `Great news ${order.shippingAddress.fullName}! Your Adaa by Shagun order has been SHIPPED and is on its way to your shipping address.`;
     if (type === "Delivered") message = `Hi ${order.shippingAddress.fullName}, your order from Adaa by Shagun has been marked as DELIVERED. We hope you love it!`;
 
-    // 1. Open WhatsApp
     window.open(`https://wa.me/91${phone}?text=${encodeURIComponent(message)}`, "_blank");
 
-    // 2. Save memory of sending this message
     try {
       const newNotification = { type, timestamp: new Date().toISOString() };
       await updateDoc(doc(db, "orders", order.id), {
         notificationHistory: arrayUnion(newNotification)
       });
-      fetchData(); // Refresh to show history
+      fetchData(); 
       setSelectedOrder(prev => prev ? { ...prev, notificationHistory: [...(prev.notificationHistory || []), newNotification] } : null);
     } catch (e) { console.error("Failed to save history"); }
   };
 
-  // --- Product CRUD Functions ---
   const handleToggleProduct = async (id: string, current: boolean) => {
     await updateDoc(doc(db, "products", id), { isActive: !current }); fetchData();
   };
@@ -93,78 +97,115 @@ export default function AdminDashboard() {
     if (confirm("Delete this product permanently?")) { await deleteDoc(doc(db, "products", id)); fetchData(); }
   };
 
+  const handleLogout = async () => {
+    await signOut(auth);
+    router.push("/");
+  };
+
+  // Safely show a loading screen while checking auth (PREVENTS WHITE SCREEN)
+  if (loadingAuth) {
+    return (
+      <div className="min-h-[70vh] flex flex-col items-center justify-center">
+        <div className="w-10 h-10 border-4 border-brand-rose border-t-brand-burgundy rounded-full animate-spin mb-4"></div>
+        <p className="text-brand-charcoal animate-pulse">Verifying secure access...</p>
+      </div>
+    );
+  }
+
+  // If the user isn't set for some reason, don't try to render the page to avoid crashes
   if (!user) return null;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-10 relative">
+    <div className="max-w-7xl mx-auto px-4 py-10 relative min-h-[80vh]">
       <div className="flex justify-between items-center mb-8 border-b pb-6">
-        <h1 className="text-3xl font-serif text-brand-burgundy">Admin Dashboard</h1>
+        <div>
+          <h1 className="text-3xl font-serif text-brand-burgundy mb-1">Admin Dashboard</h1>
+          <p className="text-sm text-gray-500">Logged in as: {user.email}</p>
+        </div>
         <div className="flex gap-4">
           <Link href="/admin/add-product" className="bg-brand-rose text-white px-5 py-2.5 rounded-md hover:bg-brand-burgundy font-medium">+ Add Product</Link>
-          <button onClick={() => signOut(auth)} className="border px-5 py-2.5 rounded-md hover:bg-gray-50">Logout</button>
+          <button onClick={handleLogout} className="border px-5 py-2.5 rounded-md hover:bg-gray-50">Logout</button>
         </div>
       </div>
 
       <div className="flex gap-4 mb-6">
         <button onClick={() => setActiveTab("orders")} className={`px-6 py-3 rounded-t-lg font-medium border-b-2 ${activeTab === "orders" ? "border-brand-burgundy text-brand-burgundy bg-brand-rose/5" : "border-transparent text-gray-500"}`}>Orders ({orders.length})</button>
-        <button onClick={() => setActiveTab("inventory")} className={`px-6 py-3 rounded-t-lg font-medium border-b-2 ${activeTab === "inventory" ? "border-brand-burgundy text-brand-burgundy bg-brand-rose/5" : "border-transparent text-gray-500"}`}>Inventory</button>
+        <button onClick={() => setActiveTab("inventory")} className={`px-6 py-3 rounded-t-lg font-medium border-b-2 ${activeTab === "inventory" ? "border-brand-burgundy text-brand-burgundy bg-brand-rose/5" : "border-transparent text-gray-500"}`}>Inventory ({products.length})</button>
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border min-h-[400px]">
-        {loadingData ? <div className="p-10 text-center">Loading...</div> : 
+        {loadingData ? <div className="p-10 text-center text-gray-500">Loading database records...</div> : 
          activeTab === "orders" ? (
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-gray-50 border-b text-sm text-gray-600">
-                <th className="px-6 py-4">Order ID / Date</th>
-                <th className="px-6 py-4">Customer</th>
-                <th className="px-6 py-4">Status</th>
-                <th className="px-6 py-4">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {orders.map(order => (
-                <tr key={order.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 text-sm">
-                    <span className="font-mono text-xs block text-gray-400">{order.id}</span>
-                    {new Date(order.createdAt).toLocaleDateString()}
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="font-semibold text-brand-burgundy">{order.shippingAddress.fullName}</div>
-                    <div className="text-sm text-gray-500">₹{order.totalAmount.toLocaleString()}</div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="text-sm mb-1">{order.paymentStatus === "Verified" ? <span className="text-green-600">₹ Verified</span> : <span className="text-amber-600">UPI Pending</span>}</div>
-                    <div className="text-xs bg-gray-100 inline-block px-2 py-1 rounded">{order.orderStatus}</div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <button onClick={() => setSelectedOrder(order)} className="bg-brand-rose/10 text-brand-burgundy px-4 py-2 rounded-md hover:bg-brand-rose/20 text-sm font-medium transition-colors">
-                      View Details
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          orders.length === 0 ? (
+            <div className="p-10 text-center text-gray-500">No orders found.</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-gray-50 border-b text-sm text-gray-600">
+                    <th className="px-6 py-4">Order ID / Date</th>
+                    <th className="px-6 py-4">Customer</th>
+                    <th className="px-6 py-4">Status</th>
+                    <th className="px-6 py-4">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {orders.map(order => (
+                    <tr key={order.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 text-sm">
+                        <span className="font-mono text-xs block text-gray-400">{order.id}</span>
+                        {new Date(order.createdAt).toLocaleDateString()}
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="font-semibold text-brand-burgundy">{order.shippingAddress.fullName}</div>
+                        <div className="text-sm text-gray-500">₹{order.totalAmount.toLocaleString("en-IN")}</div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="text-sm mb-1">{order.paymentStatus === "Verified" ? <span className="text-green-600 font-medium">₹ Verified</span> : <span className="text-amber-600 font-medium">UPI Pending</span>}</div>
+                        <div className="text-xs bg-gray-100 inline-block px-2 py-1 rounded">{order.orderStatus}</div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <button onClick={() => setSelectedOrder(order)} className="bg-brand-rose/10 text-brand-burgundy px-4 py-2 rounded-md hover:bg-brand-rose/20 text-sm font-medium transition-colors">
+                          View Details
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )
          ) : (
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-gray-50 border-b text-sm text-gray-600"><th className="px-6 py-4">Product</th><th className="px-6 py-4">Price</th><th className="px-6 py-4">Actions</th></tr>
-            </thead>
-            <tbody className="divide-y">
-              {products.map(p => (
-                <tr key={p.id}>
-                  <td className="px-6 py-4 font-medium">{p.name} <span className="text-xs text-gray-400 block">{p.isActive ? 'Active' : 'Hidden'}</span></td>
-                  <td className="px-6 py-4">₹{p.price}</td>
-                  <td className="px-6 py-4 space-x-4">
-                    <button onClick={() => handleToggleProduct(p.id, p.isActive)} title="Toggle Visibility">{p.isActive ? <EyeOff className="w-5 h-5 inline text-gray-500"/> : <Eye className="w-5 h-5 inline text-gray-500"/>}</button>
-                    <Link href={`/admin/edit-product/${p.id}`}><Edit className="w-5 h-5 inline text-blue-500"/></Link>
-                    <button onClick={() => handleDeleteProduct(p.id)}><Trash2 className="w-5 h-5 inline text-red-500"/></button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          products.length === 0 ? (
+            <div className="p-10 text-center text-gray-500">No products found.</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-gray-50 border-b text-sm text-gray-600"><th className="px-6 py-4">Product</th><th className="px-6 py-4">Price</th><th className="px-6 py-4">Actions</th></tr>
+                </thead>
+                <tbody className="divide-y">
+                  {products.map(p => (
+                    <tr key={p.id}>
+                      <td className="px-6 py-4 flex items-center gap-4">
+                        <img src={p.images[0]} alt={p.name} className="w-10 h-10 rounded object-cover" />
+                        <div>
+                          <span className="font-medium">{p.name}</span>
+                          <span className="text-xs text-gray-400 block">{p.isActive ? 'Active' : 'Hidden'}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">₹{p.price.toLocaleString("en-IN")}</td>
+                      <td className="px-6 py-4 space-x-4">
+                        <button onClick={() => handleToggleProduct(p.id, p.isActive)} title="Toggle Visibility">{p.isActive ? <EyeOff className="w-5 h-5 inline text-gray-500"/> : <Eye className="w-5 h-5 inline text-gray-500"/>}</button>
+                        <Link href={`/admin/edit-product/${p.id}`}><Edit className="w-5 h-5 inline text-blue-500"/></Link>
+                        <button onClick={() => handleDeleteProduct(p.id)}><Trash2 className="w-5 h-5 inline text-red-500"/></button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )
          )}
       </div>
 
@@ -231,12 +272,12 @@ export default function AdminDashboard() {
                   {selectedOrder.items.map((item, idx) => (
                     <div key={idx} className="p-3 flex justify-between items-center bg-white text-sm">
                       <div><span className="font-medium">{item.quantity}x</span> {item.name} <span className="text-brand-rose font-medium text-xs ml-2">Size: {item.size}</span></div>
-                      <div className="font-medium">₹{(item.price * item.quantity).toLocaleString()}</div>
+                      <div className="font-medium">₹{(item.price * item.quantity).toLocaleString("en-IN")}</div>
                     </div>
                   ))}
                   <div className="p-3 bg-gray-50 flex justify-between items-center font-bold text-brand-burgundy">
                     <span>Total Paid</span>
-                    <span>₹{selectedOrder.totalAmount.toLocaleString()}</span>
+                    <span>₹{selectedOrder.totalAmount.toLocaleString("en-IN")}</span>
                   </div>
                 </div>
               </div>
@@ -273,7 +314,6 @@ export default function AdminDashboard() {
           </div>
         </div>
       )}
-
     </div>
   );
 }

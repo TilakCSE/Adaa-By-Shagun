@@ -15,7 +15,7 @@ export default function Navbar() {
   const [isAdmin, setIsAdmin] = useState(false);
 
   // Define your admin emails here so the frontend always knows!
-  const adminEmails = ["admin@test.com", "contact.adaabyshagun@gmail.com"];
+  const adminEmails = ["contact.adaabyshagun@gmail.com"];
 
   useEffect(() => {
     setMounted(true);
