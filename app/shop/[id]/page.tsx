@@ -185,7 +185,7 @@ export default function ProductDetailPage() {
           <div className="mt-8 grid grid-cols-2 gap-4 text-sm text-brand-charcoal/70 border-t border-brand-rose/20 pt-6">
             <div className="flex flex-col gap-1">
               <span className="font-semibold text-brand-burgundy">Shipping</span>
-              <span>Free shipping across India on all prepaid orders.</span>
+              <span>Exclusive Vadodara delivery. Free shipping on orders over ₹1000. Flat ₹100 fee for orders below.</span>
             </div>
             <div className="flex flex-col gap-1">
               <span className="font-semibold text-brand-burgundy">Support & Returns</span>

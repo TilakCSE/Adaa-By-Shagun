@@ -116,17 +116,19 @@ export default function AdminDashboard() {
   if (!user) return null;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-10 relative min-h-[80vh]">
-      <div className="flex justify-between items-center mb-8 border-b pb-6">
+    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 border-b pb-6 gap-4">
         <div>
           <h1 className="text-3xl font-serif text-brand-burgundy mb-1">Admin Dashboard</h1>
           <p className="text-sm text-gray-500">Logged in as: {user.email}</p>
         </div>
-        <div className="flex gap-4">
-          <Link href="/admin/add-product" className="bg-brand-rose text-white px-5 py-2.5 rounded-md hover:bg-brand-burgundy font-medium">+ Add Product</Link>
-          <button onClick={handleLogout} className="border px-5 py-2.5 rounded-md hover:bg-gray-50">Logout</button>
+        <div className="flex flex-wrap gap-3 w-full sm:w-auto">
+          <Link href="/admin/add-product" className="bg-brand-rose text-white px-4 py-2 rounded-md hover:bg-brand-burgundy font-medium text-sm flex-grow sm:flex-grow-0 text-center whitespace-nowrap">
+            + Add Product
+          </Link>
+          <button onClick={handleLogout} className="border px-4 py-2 rounded-md hover:bg-gray-50 text-sm flex-grow sm:flex-grow-0 whitespace-nowrap">
+            Logout
+          </button>
         </div>
-      </div>
 
       <div className="flex gap-4 mb-6">
         <button onClick={() => setActiveTab("orders")} className={`px-6 py-3 rounded-t-lg font-medium border-b-2 ${activeTab === "orders" ? "border-brand-burgundy text-brand-burgundy bg-brand-rose/5" : "border-transparent text-gray-500"}`}>Orders ({orders.length})</button>

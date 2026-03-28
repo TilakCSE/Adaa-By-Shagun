@@ -5,7 +5,7 @@ export default function AboutPage() {
       
       <div className="w-24 h-1 bg-brand-rose mx-auto mb-10"></div>
       
-      <div className="space-y-6 text-brand-charcoal/80 leading-relaxed text-lg text-justify">
+      <div className="space-y-6 text-brand-charcoal/80 leading-relaxed text-lg text-left">
         <p>
           Welcome to Adaa by Shagun, where traditional elegance meets modern sophistication. 
           Our journey began with a simple vision: to create handcrafted, premium fashion that empowers 

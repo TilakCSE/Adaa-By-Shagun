@@ -135,8 +135,8 @@ export default function HomePage() {
               <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mb-6 shadow-sm border border-brand-rose/20 text-brand-burgundy">
                 <Truck className="w-8 h-8" />
               </div>
-              <h3 className="text-xl font-serif text-brand-burgundy mb-3">Fast Shipping</h3>
-              <p className="text-brand-charcoal/70">Free and fast shipping across India on all prepaid orders.</p>
+              <h3 className="text-xl font-serif text-brand-burgundy mb-3">Vadodara Delivery</h3>
+              <p className="text-brand-charcoal/70">Exclusive delivery within Vadodara. Free shipping on orders over ₹1,000.</p>
             </div>
             <div className="flex flex-col items-center">
               <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mb-6 shadow-sm border border-brand-rose/20 text-brand-burgundy">

@@ -92,6 +92,9 @@ export default function Navbar() {
           <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 flex flex-col items-center">
             <Link href="/" onClick={() => setIsMobileMenuOpen(false)} className="block px-3 py-3 text-brand-charcoal hover:text-brand-rose w-full text-center font-medium">Home</Link>
             <Link href="/shop" onClick={() => setIsMobileMenuOpen(false)} className="block px-3 py-3 text-brand-charcoal hover:text-brand-rose w-full text-center font-medium">Shop</Link>
+            <Link href="/about" onClick={() => setIsMobileMenuOpen(false)} className="block px-3 py-3 text-brand-charcoal hover:text-brand-rose w-full text-center font-medium">About</Link>
+            <Link href="/contact" onClick={() => setIsMobileMenuOpen(false)} className="block px-3 py-3 text-brand-charcoal hover:text-brand-rose w-full text-center font-medium">Contact</Link>
+            
             {isAdmin && (
               <Link href="/admin" onClick={() => setIsMobileMenuOpen(false)} className="block px-3 py-3 text-brand-burgundy font-bold w-full text-center bg-brand-rose/10">Admin Dashboard</Link>
             )}
