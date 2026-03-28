@@ -6,40 +6,42 @@ import { useRouter } from "next/navigation";
 import { collection, addDoc, doc, getDoc } from "firebase/firestore";
 import { db, auth } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
-import { ArrowLeft, CheckCircle2, ShieldCheck, Smartphone, Info } from "lucide-react";
+import { ArrowLeft, CheckCircle2, ShieldCheck, Smartphone, Info, MapPin } from "lucide-react";
 import Link from "next/link";
 
 export default function CheckoutPage() {
   const { cartItems, getCartTotal, clearCart } = useCart();
   const router = useRouter();
+  
+  // Totals & Fees Calculation
   const subtotal = getCartTotal();
+  const deliveryFee = subtotal > 0 && subtotal < 1000 ? 100 : 0;
+  const grandTotal = subtotal + deliveryFee;
 
-  const businessUpiId = "shagun123@upi"; 
+  // IMPORTANT: Paste the client's actual UPI ID here!
+  const businessUpiId = "shagun142000-4@oksbi"; 
   const businessName = "Adaa By Shagun";
 
   const [mounted, setMounted] = useState(false);
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   
-  // 'guest' is default. Will update if logged in.
   const [userId, setUserId] = useState<string>("guest"); 
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [placedOrder, setPlacedOrder] = useState<{ id: string, total: number } | null>(null);
 
   const [formData, setFormData] = useState({
-    fullName: "", phone: "", address: "", city: "", state: "Gujarat", pincode: "",
+    fullName: "", phone: "", address: "", city: "Vadodara", state: "Gujarat", pincode: "", // Default to Vadodara
   });
 
   useEffect(() => {
     setMounted(true);
     
-    // Check auth, but DON'T redirect if they aren't logged in!
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         setIsLoggedIn(true);
         setUserId(user.uid);
         
-        // Auto-fill their saved address if they have one!
         const userDoc = await getDoc(doc(db, "users", user.uid));
         if (userDoc.exists()) {
           const data = userDoc.data();
@@ -47,7 +49,7 @@ export default function CheckoutPage() {
             fullName: data.fullName || "",
             phone: data.phone || "",
             address: data.savedAddress?.address || "",
-            city: data.savedAddress?.city || "",
+            city: data.savedAddress?.city || "Vadodara", // Default to Vadodara
             state: data.savedAddress?.state || "Gujarat",
             pincode: data.savedAddress?.pincode || "",
           });
@@ -69,6 +71,14 @@ export default function CheckoutPage() {
 
   const proceedToPayment = (e: React.FormEvent) => {
     e.preventDefault();
+
+    // VADODARA LOCATION LOCK CHECK
+    const normalizedCity = formData.city.toLowerCase().replace(/\s/g, '');
+    if (normalizedCity !== "vadodara" && normalizedCity !== "baroda") {
+      alert("We currently only deliver within Vadodara. Please update your shipping city to proceed.");
+      return; // Stop the user from going to step 2
+    }
+
     setStep(2);
     window.scrollTo(0, 0);
   };
@@ -77,9 +87,11 @@ export default function CheckoutPage() {
     setLoading(true);
     try {
       const orderData = {
-        userId: userId, // Will be "guest" or their actual ID
+        userId: userId,
         items: cartItems,
-        totalAmount: subtotal,
+        subtotal: subtotal,
+        deliveryFee: deliveryFee,
+        totalAmount: grandTotal, // MUST save the grand total with fee
         shippingAddress: formData,
         paymentMethod: "UPI",
         paymentStatus: "Pending Verification", 
@@ -88,7 +100,7 @@ export default function CheckoutPage() {
       };
 
       const docRef = await addDoc(collection(db, "orders"), orderData);
-      setPlacedOrder({ id: docRef.id, total: subtotal });
+      setPlacedOrder({ id: docRef.id, total: grandTotal });
       clearCart();
     } catch (error) {
       alert("Something went wrong. Please try again.");
@@ -97,7 +109,8 @@ export default function CheckoutPage() {
     }
   };
 
-  const upiUrl = `upi://pay?pa=${businessUpiId}&pn=${encodeURIComponent(businessName)}&am=${subtotal}&cu=INR`;
+  // Generate UPI code based on the GRAND TOTAL
+  const upiUrl = `upi://pay?pa=${businessUpiId}&pn=${encodeURIComponent(businessName)}&am=${grandTotal}&cu=INR`;
   const qrCodeImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(upiUrl)}`;
 
   // SUCCESS SCREEN
@@ -140,7 +153,6 @@ export default function CheckoutPage() {
           {step === 1 ? (
              <div className="bg-white p-8 rounded-xl shadow-sm border border-brand-rose/20">
              
-             {/* GUEST CHECKOUT RECOMMENDATION */}
              {!isLoggedIn && (
                <div className="bg-brand-rose/10 text-brand-burgundy p-4 rounded-lg border border-brand-rose/30 flex items-start gap-3 mb-8">
                  <Info className="w-5 h-5 mt-0.5 flex-shrink-0" />
@@ -152,6 +164,13 @@ export default function CheckoutPage() {
              )}
 
              <h2 className="text-2xl font-serif text-brand-burgundy mb-6 border-b border-brand-rose/20 pb-4">Shipping Details</h2>
+             
+             {/* VADODARA ONLY BANNER */}
+             <div className="bg-amber-50 text-amber-800 p-3 rounded-md mb-6 flex items-center gap-2 text-sm border border-amber-200">
+               <MapPin className="w-4 h-4" />
+               Please note: We currently only deliver within <strong>Vadodara</strong>.
+             </div>
+
              <form onSubmit={proceedToPayment} className="space-y-6">
                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                  <div>
@@ -189,16 +208,14 @@ export default function CheckoutPage() {
           ) : (
             <div className="bg-white p-8 rounded-xl shadow-sm border border-brand-rose/20 text-center">
               <h2 className="text-2xl font-serif text-brand-burgundy mb-2">Secure UPI Payment</h2>
-              <div className="text-2xl font-semibold text-brand-burgundy mb-6">Amount to Pay: ₹{subtotal.toLocaleString("en-IN")}</div>
+              <div className="text-2xl font-semibold text-brand-burgundy mb-6">Amount to Pay: ₹{grandTotal.toLocaleString("en-IN")}</div>
 
-              {/* MOBILE TAP-TO-PAY */}
               <div className="md:hidden flex flex-col gap-3 mb-8">
                 <a href={upiUrl} className="bg-black text-white py-3 rounded-lg font-medium flex items-center justify-center gap-2">
                   Tap to Pay via GPay / PhonePe / Paytm
                 </a>
               </div>
 
-              {/* DESKTOP QR CODE */}
               <div className="hidden md:block mb-8">
                 <p className="text-brand-charcoal/70 mb-4">Scan the QR code below using any UPI app.</p>
                 <div className="p-4 border-2 border-brand-rose/30 rounded-xl bg-white shadow-sm inline-block">
@@ -242,11 +259,21 @@ export default function CheckoutPage() {
                 </div>
               ))}
             </div>
+            
             <div className="border-t border-brand-rose/20 pt-4 space-y-2 text-sm">
               <div className="flex justify-between text-brand-charcoal"><span>Subtotal</span><span>₹{subtotal.toLocaleString("en-IN")}</span></div>
-              <div className="flex justify-between text-brand-charcoal"><span>Shipping</span><span className="text-green-600">Free</span></div>
+              
+              <div className="flex justify-between text-brand-charcoal">
+                <span>Shipping</span>
+                {subtotal >= 1000 ? (
+                  <span><span className="line-through text-gray-400 mr-2">₹100</span><span className="text-green-600">Free</span></span>
+                ) : (
+                  <span>₹100</span>
+                )}
+              </div>
+              
               <div className="flex justify-between text-lg font-semibold text-brand-burgundy pt-2 border-t border-brand-rose/20 mt-2">
-                <span>Total</span><span>₹{subtotal.toLocaleString("en-IN")}</span>
+                <span>Total</span><span>₹{grandTotal.toLocaleString("en-IN")}</span>
               </div>
             </div>
           </div>
